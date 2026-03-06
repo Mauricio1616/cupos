@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel — Registrar Cupo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary:  { DEFAULT: '#6c63ff', light: '#8f88ff', dark: '#4b44d6' },
+            surface:  '#1e1b3a',
+            card:     '#2a2650',
+          }
+        }
+      }
+    }
+  </script>
+  <script>
+    // Guard de sesión: redirige al login si no hay sesión activa
+    (function() {
+      var s = sessionStorage.getItem('cupos_session');
+      if (!s) { window.location.replace('index.html'); }
+    })();
+  </script>
+  <style>
+    body { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); min-height: 100vh; }
+    select option { background: #2a2650; color: #e2e8f0; }
+    .progress-bar { transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .fade-in { animation: fadeIn 0.3s ease both; }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+    ::-webkit-scrollbar-thumb { background: rgba(108,99,255,0.5); border-radius:3px; }
+  </style>
+</head>
+<body class="font-sans p-4 md:p-8">
+
+  <!-- Navbar -->
+  <div class="max-w-3xl mx-auto mb-6 flex items-center justify-between
+              bg-white/10 backdrop-blur border border-white/15 rounded-2xl px-5 py-3 shadow-lg">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-teal-400 flex items-center justify-center text-white text-sm font-bold">
+        C
+      </div>
+      <div>
+        <p class="text-white font-semibold text-sm leading-tight">Sistema de Cupos</p>
+        <p class="text-white/50 text-xs">👤 <span id="nombre-usuario">—</span></p>
+      </div>
+    </div>
+    <button onclick="cerrarSesion()"
+      class="text-xs font-semibold px-4 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/40
+             text-red-300 border border-red-500/30 transition-colors duration-200">
+      Cerrar sesión
+    </button>
+  </div>
+
+  <!-- Card principal -->
+  <div class="max-w-3xl mx-auto bg-white/10 backdrop-blur border border-white/15 rounded-2xl shadow-2xl p-6 md:p-8">
+
+    <h2 class="text-white text-xl font-bold mb-6 flex items-center gap-2">
+      <svg class="w-5 h-5 text-primary-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M12 4v16m8-8H4"/>
+      </svg>
+      Registrar Cupo
+    </h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
+      <!-- Quién ocupa el cupo (usuario logueado, solo lectura) -->
+      <div class="flex flex-col gap-1">
+        <label class="text-white/60 text-xs font-semibold uppercase tracking-widest">Persona</label>
+        <div class="relative">
+          <!-- Campo oculto con el valor real para la lógica -->
+          <input type="hidden" id="persona" />
+          <!-- Campo visual no editable -->
+          <div id="persona-display"
+            class="w-full bg-white/5 border border-primary/40 text-primary-light rounded-xl px-4 py-3
+                   text-sm font-semibold flex items-center gap-2 cursor-not-allowed select-none">
+            <svg class="w-3.5 h-3.5 shrink-0 opacity-70" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+            </svg>
+            <span id="persona-nombre">—</span>
+            <span class="ml-auto text-xs opacity-40">🔒</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Semestre -->
+      <div class="flex flex-col gap-1">
+        <label class="text-white/60 text-xs font-semibold uppercase tracking-widest">Semestre</label>
+        <div class="relative">
+          <select id="hoja" onchange="onHojaChange()"
+            class="w-full bg-white/5 border border-white/15 text-white rounded-xl px-4 py-3
+                   text-sm appearance-none outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 transition">
+          </select>
+          <span class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none text-xs">▾</span>
+        </div>
+      </div>
+
+      <!-- Materia -->
+      <div class="flex flex-col gap-1">
+        <label class="text-white/60 text-xs font-semibold uppercase tracking-widest">Materia</label>
+        <div class="relative">
+          <select id="materia" onchange="onMateriaChange()"
+            class="w-full bg-white/5 border border-white/15 text-white rounded-xl px-4 py-3
+                   text-sm appearance-none outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 transition">
+          </select>
+          <span class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none text-xs">▾</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════ PANEL DE ESTADÍSTICAS DE CUPOS ══════ -->
+    <div id="stats-panel" class="hidden mb-6 fade-in">
+      <div class="bg-white/5 border border-white/10 rounded-2xl p-5">
+        <div class="flex items-center gap-2 mb-4">
+          <svg class="w-4 h-4 text-primary-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          <span class="text-white/80 text-sm font-semibold">Estadísticas de Cupos</span>
+          <div id="stats-loading" class="hidden ml-auto">
+            <div class="w-4 h-4 border-2 border-white/20 border-t-primary rounded-full animate-spin"></div>
+          </div>
+        </div>
+
+        <!-- Tarjetas de números -->
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <!-- Total máximo -->
+          <div id="card-max" class="hidden bg-white/5 rounded-xl p-3 text-center border border-white/10">
+            <p class="text-white/50 text-xs mb-1">Total</p>
+            <p id="val-max" class="text-white text-2xl font-bold">—</p>
+          </div>
+
+          <!-- Cupos usados -->
+          <div class="bg-orange-500/10 rounded-xl p-3 text-center border border-orange-500/20 col-span-1">
+            <p class="text-orange-300/70 text-xs mb-1">Usados</p>
+            <p id="val-usado" class="text-orange-300 text-2xl font-bold">—</p>
+          </div>
+
+          <!-- Cupos restantes -->
+          <div id="card-restante" class="hidden bg-teal-500/10 rounded-xl p-3 text-center border border-teal-500/20">
+            <p class="text-teal-300/70 text-xs mb-1">Disponibles</p>
+            <p id="val-restante" class="text-teal-300 text-2xl font-bold">—</p>
+          </div>
+        </div>
+
+        <!-- Barra de progreso -->
+        <div id="progreso-wrap" class="hidden mb-4">
+          <div class="flex justify-between text-xs text-white/50 mb-1">
+            <span>Ocupación</span>
+            <span id="pct-label">0%</span>
+          </div>
+          <div class="w-full bg-white/10 rounded-full h-2.5 overflow-hidden">
+            <div id="progreso-bar"
+              class="progress-bar h-2.5 rounded-full bg-gradient-to-r from-primary to-teal-400"
+              style="width:0%"></div>
+          </div>
+        </div>
+
+        <!-- Distribución por persona -->
+        <div id="personas-wrap" class="hidden">
+          <p class="text-white/40 text-xs font-semibold uppercase tracking-wider mb-2">Distribución por persona</p>
+          <div id="personas-list" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <!-- Sin datos -->
+        <p id="stats-empty" class="hidden text-white/40 text-sm text-center py-2">
+          Sin cupos registrados aún para esta materia.
+        </p>
+      </div>
+    </div>
+
+    <!-- ══════ BOTÓN REGISTRAR ══════ -->
+    <button id="btn-guardar" onclick="guardar()"
+      class="w-full py-3.5 rounded-xl font-bold text-white text-sm
+             bg-gradient-to-r from-primary to-teal-400 shadow-lg shadow-primary/30
+             hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0
+             transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0
+             flex items-center justify-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+      </svg>
+      <span id="btn-text">Sumar Cupo (+1)</span>
+      <div id="btn-spinner" class="hidden w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+    </button>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // ── Sesión ─────────────────────────────────────────────────────────────────
+    var _usuarioLogueado = '';
+    (function() {
+      try {
+        var s = JSON.parse(sessionStorage.getItem('cupos_session'));
+        if (s && s.nombre) {
+          _usuarioLogueado = s.nombre;
+          document.getElementById('nombre-usuario').textContent  = s.nombre;
+          document.getElementById('persona-nombre').textContent  = s.nombre;
+          document.getElementById('persona').value               = s.nombre;
+        }
+      } catch(e) {}
+    })();
+
+    function cerrarSesion() {
+      sessionStorage.removeItem('cupos_session');
+      window.location.href = 'index.html';
+    }
+
+    // ── UI helpers ─────────────────────────────────────────────────────────────
+    function setBtnLoading(on) {
+      var btn     = document.getElementById('btn-guardar');
+      var txt     = document.getElementById('btn-text');
+      var spinner = document.getElementById('btn-spinner');
+      btn.disabled         = on;
+      txt.textContent      = on ? 'Registrando…' : 'Sumar Cupo (+1)';
+      spinner.classList.toggle('hidden', !on);
+    }
+
+    // ── SweetAlert2 helpers ────────────────────────────────────────────────────
+    const Toast = Swal.mixin({
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 3500,
+      timerProgressBar: true,
+      background: '#1e1b3a',
+      color: '#e2e8f0',
+      didOpen: (toast) => {
+        toast.onmouseenter = Swal.stopTimer;
+        toast.onmouseleave = Swal.resumeTimer;
+      }
+    });
+
+    function notificarExito(texto) {
+      Toast.fire({ icon: 'success', title: texto });
+    }
+
+    function notificarError(texto) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: texto,
+        background: '#1e1b3a',
+        color: '#e2e8f0',
+        confirmButtonColor: '#6c63ff',
+        confirmButtonText: 'Entendido'
+      });
+    }
+
+    function notificarAdvertencia(texto) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Atención',
+        text: texto,
+        background: '#1e1b3a',
+        color: '#e2e8f0',
+        confirmButtonColor: '#6c63ff',
+        confirmButtonText: 'OK'
+      });
+    }
+
+    // ── Stats panel ─────────────────────────────────────────────────────────────
+    function ocultarStats() {
+      document.getElementById('stats-panel').classList.add('hidden');
+    }
+
+    async function actualizarStats() {
+      var hoja    = document.getElementById('hoja').value;
+      var materia = document.getElementById('materia').value;
+      if (!hoja || !materia) { ocultarStats(); return; }
+
+      var panel = document.getElementById('stats-panel');
+      panel.classList.remove('hidden');
+      document.getElementById('stats-loading').classList.remove('hidden');
+      document.getElementById('personas-wrap').classList.add('hidden');
+      document.getElementById('stats-empty').classList.add('hidden');
+      document.getElementById('progreso-wrap').classList.add('hidden');
+      document.getElementById('card-max').classList.add('hidden');
+      document.getElementById('card-restante').classList.add('hidden');
+
+      try {
+        var data = await SheetsAPI.obtenerCuposMateria(hoja, materia);
+        renderStats(data);
+      } catch(e) {
+        console.warn('No se pudieron cargar stats:', e.message);
+      } finally {
+        document.getElementById('stats-loading').classList.add('hidden');
+      }
+    }
+
+    function renderStats(data) {
+      // Usados
+      document.getElementById('val-usado').textContent = data.usado;
+
+      // Max y restante (si columna B tiene valor)
+      if (data.max !== null) {
+        document.getElementById('val-max').textContent       = data.max;
+        document.getElementById('val-restante').textContent  = Math.max(0, data.restante);
+        document.getElementById('card-max').classList.remove('hidden');
+        document.getElementById('card-restante').classList.remove('hidden');
+
+        // Barra de progreso
+        var pct = data.max > 0 ? Math.min(100, Math.round((data.usado / data.max) * 100)) : 0;
+        document.getElementById('pct-label').textContent = pct + '%';
+        document.getElementById('progreso-bar').style.width = pct + '%';
+        // Color de barra según ocupación
+        var barEl = document.getElementById('progreso-bar');
+        if (pct >= 90)
+          barEl.className = 'progress-bar h-2.5 rounded-full bg-gradient-to-r from-red-500 to-orange-400';
+        else if (pct >= 60)
+          barEl.className = 'progress-bar h-2.5 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400';
+        else
+          barEl.className = 'progress-bar h-2.5 rounded-full bg-gradient-to-r from-primary to-teal-400';
+        document.getElementById('progreso-wrap').classList.remove('hidden');
+      }
+
+      // Distribución por persona
+      var personas = data.porPersona;
+      var keys = Object.keys(personas);
+      if (keys.length > 0) {
+        var list = document.getElementById('personas-list');
+        list.innerHTML = '';
+        keys.sort((a,b) => personas[b] - personas[a]).forEach(function(nombre) {
+          var badge = document.createElement('span');
+          badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ' +
+            'bg-primary/20 border border-primary/30 text-primary-light';
+          badge.innerHTML = `<span class="font-bold">${personas[nombre]}</span> ${nombre}`;
+          list.appendChild(badge);
+        });
+        document.getElementById('personas-wrap').classList.remove('hidden');
+      } else {
+        document.getElementById('stats-empty').classList.remove('hidden');
+      }
+    }
+
+    // ── Carga de datos ──────────────────────────────────────────────────────────
+    async function cargarHojas() {
+      setBtnLoading(true);
+      try {
+        var hojas  = await SheetsAPI.obtenerHojas();
+        var select = document.getElementById('hoja');
+        select.innerHTML = '';
+        hojas.forEach(function(h) {
+          var op = document.createElement('option');
+          op.value = h; op.text = h;
+          select.appendChild(op);
+        });
+        await Promise.all([cargarNombres(), cargarMaterias()]);
+        actualizarStats();
+      } catch(e) {
+        notificarError('Error al cargar hojas: ' + e.message);
+      } finally {
+        setBtnLoading(false);
+      }
+    }
+
+    // cargarNombres ya no es necesario: el usuario viene de la sesión
+    async function cargarNombres() {
+      // El campo persona se fija desde sessionStorage; no cargamos el select
+    }
+
+    async function cargarMaterias() {
+      var hoja = document.getElementById('hoja').value;
+      if (!hoja) { document.getElementById('materia').innerHTML = ''; return; }
+      try {
+        var materias = await SheetsAPI.obtenerMaterias(hoja);
+        var select   = document.getElementById('materia');
+        select.innerHTML = '';
+        materias.forEach(function(m) {
+          var op = document.createElement('option');
+          op.value = m; op.text = m;
+          select.appendChild(op);
+        });
+      } catch(e) { console.warn('Error materias:', e.message); }
+    }
+
+    async function onHojaChange() {
+      ocultarStats();
+      await cargarMaterias();
+      actualizarStats();
+    }
+
+    function onMateriaChange() {
+      actualizarStats();
+    }
+
+    // ── Guardar cupo ────────────────────────────────────────────────────────────
+    async function guardar() {
+      var persona = document.getElementById('persona').value;
+      var hoja    = document.getElementById('hoja').value;
+      var materia = document.getElementById('materia').value;
+
+      if (!persona || !hoja || !materia) {
+        notificarAdvertencia('Seleccione un semestre y una materia.');
+        return;
+      }
+
+      setBtnLoading(true);
+      try {
+        var msg = await SheetsAPI.agregarCupoAEstudiante(hoja, materia, persona);
+        notificarExito(msg);
+        await actualizarStats();
+      } catch(e) {
+        notificarError(e.message);
+      } finally {
+        setBtnLoading(false);
+      }
+    }
+
+    // Inicio
+    cargarHojas();
+  </script>
+</body>
+</html>

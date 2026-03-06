@@ -1,0 +1,119 @@
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("Cupos")
+    .addItem("Registrar Cupo", "abrirPanel")
+    .addToUi();
+}
+
+/**
+ * Muestra el diálogo modal con el formulario HTML.
+ */
+function abrirPanel() {
+  var html = HtmlService.createHtmlOutputFromFile("panel")
+    .setWidth(400)
+    .setHeight(350);
+  
+  SpreadsheetApp.getUi().showModalDialog(html, "Registrar Cupo");
+}
+
+/**
+ * Retorna una lista con los nombres de todas las hojas (semestres).
+ */
+function obtenerHojas() {
+  var sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+  return sheets.map(s => s.getName());
+}
+
+/**
+ * Retorna la lista de nombres (encabezados de columna) del rango D1:AD1.
+ * Estos serán los valores del selector "Quién ocupa el cupo".
+ */
+function obtenerNombres() {
+  // Asumimos que los nombres están en la primera hoja por conveniencia, pero idealmente 
+  // estarían en una hoja de configuración central. Usaremos la hoja activa como referencia.
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var range = sheet.getRange("D1:AD1");
+  // getValues()[0] obtiene el array de los valores de la fila 1
+  // .filter(String) elimina cualquier celda vacía para que no aparezcan en el selector
+  return range.getValues()[0].filter(String); 
+}
+
+/**
+ * Retorna la lista de materias (Columna A, desde la fila 2 en adelante) para la hoja seleccionada.
+ */
+function obtenerMaterias(nombreHoja) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombreHoja);
+  if (!sheet) return [];
+  
+  var lastRow = sheet.getLastRow();
+  // Si no hay filas de datos, retornar un array vacío.
+  if (lastRow < 2) return [];
+  
+  // Rango: Columna A, desde la fila 2 hasta la última fila
+  var range = sheet.getRange(2, 1, lastRow - 1, 1); 
+  // Mapear [[materia1], [materia2], ...] a [materia1, materia2, ...] y eliminar vacíos
+  return range.getValues().map(row => row[0]).filter(String);
+}
+
+
+/**
+ * Función principal para registrar el cupo (+1).
+ * Busca la celda en la intersección de la Materia (Fila) y la Persona (Columna) y la incrementa en 1.
+ * 
+ * @param {string} nombreHoja El nombre del semestre (hoja).
+ * @param {string} nombreMateria El nombre de la materia (fila a buscar).
+ * @param {string} nombrePersona El nombre de la persona (columna a buscar).
+ * @returns {string} Mensaje de confirmación o error.
+ */
+function agregarCupoAEstudiante(nombreHoja, nombreMateria, nombrePersona) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombreHoja);
+  
+  if (!sheet) {
+    return "Error: Hoja '" + nombreHoja + "' no encontrada.";
+  }
+
+  // 1. Buscar la Fila de la Materia (en Columna A)
+  var rowToUpdate = -1;
+  var materiaValues = sheet.getRange("A2:A" + sheet.getLastRow()).getValues();
+  
+  for (var i = 0; i < materiaValues.length; i++) {
+    // i + 2 es el número de fila real en la hoja (empezando en la fila 2)
+    if (materiaValues[i][0] === nombreMateria) {
+      rowToUpdate = i + 2; 
+      break;
+    }
+  }
+
+  if (rowToUpdate === -1) {
+    return "Error: Materia '" + nombreMateria + "' no encontrada.";
+  }
+
+  // 2. Buscar la Columna de la Persona (en Fila 1)
+  var colToUpdate = -1;
+  // Valores de los encabezados de D1 a AD1 (Columnas 4 a 30)
+  var nombreValues = sheet.getRange("D1:AD1").getValues()[0];
+  
+  for (var j = 0; j < nombreValues.length; j++) {
+    // j + 4 es el número de columna real en la hoja (empezando en la columna D=4)
+    if (nombreValues[j] === nombrePersona) {
+      colToUpdate = j + 4; 
+      break;
+    }
+  }
+
+  if (colToUpdate === -1) {
+    return "Error: Nombre de persona '" + nombrePersona + "' no encontrado en los encabezados (D1:AD1).";
+  }
+
+  // 3. Actualizar la celda y sumar +1
+  var cellToUpdate = sheet.getRange(rowToUpdate, colToUpdate);
+  // Usamos Number(cellToUpdate.getValue() || 0) para asegurarnos de que el valor actual sea un número (o 0 si está vacío)
+  var actualValue = Number(cellToUpdate.getValue()) || 0;
+  var newValue = actualValue + 1;
+
+  cellToUpdate.setValue(newValue);
+  
+  // Mensaje de éxito
+  return "Se registró un cupo (+1) para '" + nombrePersona + "' en la materia '" + nombreMateria + "'. Nuevo valor: " + newValue;
+}

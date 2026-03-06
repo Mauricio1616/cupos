@@ -1,1 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acceso — Sistema de Cupos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    body {
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Orbs decorativos */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.35;
+      pointer-events: none;
+    }
+    body::before {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #6c63ff, transparent);
+      top: -150px; left: -150px;
+      animation: floatA 8s ease-in-out infinite alternate;
+    }
+    body::after {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, #00d4ff, transparent);
+      bottom: -120px; right: -120px;
+      animation: floatB 10s ease-in-out infinite alternate;
+    }
+    @keyframes floatA { from { transform: translate(0,0) scale(1); } to { transform: translate(40px, 40px) scale(1.1); } }
+    @keyframes floatB { from { transform: translate(0,0) scale(1); } to { transform: translate(-30px,-30px) scale(1.08); } }
+
+    .card {
+      background: rgba(255,255,255,0.07);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 24px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.45);
+      animation: slideUp 0.6s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .logo svg {
+      width: 52px; height: 52px;
+      margin-bottom: 12px;
+    }
+    .logo h1 {
+      font-size: 1.55rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+    .logo p {
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.5);
+      margin-top: 4px;
+      font-weight: 300;
+    }
+
+    label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+
+    .field { margin-bottom: 20px; position: relative; }
+
+    select, input[type="password"] {
+      width: 100%;
+      padding: 13px 16px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 0.95rem;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    select option { background: #1e1b3a; color: #fff; }
+    select:focus, input[type="password"]:focus {
+      border-color: #6c63ff;
+      background: rgba(108,99,255,0.12);
+      box-shadow: 0 0 0 3px rgba(108,99,255,0.25);
+    }
+
+    /* Flecha personalizada para select */
+    .select-wrap { position: relative; }
+    .select-wrap::after {
+      content: '▾';
+      position: absolute;
+      right: 16px; top: 50%;
+      transform: translateY(-50%);
+      color: rgba(255,255,255,0.4);
+      pointer-events: none;
+      font-size: 1rem;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #6c63ff, #4ecdc4);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 6px 20px rgba(108,99,255,0.4);
+      letter-spacing: 0.3px;
+    }
+    .btn-login:hover { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 10px 28px rgba(108,99,255,0.5); }
+    .btn-login:active { transform: translateY(0); }
+    .btn-login:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .error-msg {
+      display: none;
+      background: rgba(255,80,80,0.15);
+      border: 1px solid rgba(255,80,80,0.35);
+      color: #ff8080;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 0.85rem;
+      margin-top: 16px;
+      text-align: center;
+      animation: shake 0.35s ease;
+    }
+    @keyframes shake {
+      0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)}
+    }
+
+    .spinner {
+      display: none;
+      width: 20px; height: 20px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <!-- Ícono de llave / acceso -->
+      <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="26" cy="26" r="26" fill="url(#grad)"/>
+        <path d="M22 24a7 7 0 1 1 7 7 6.98 6.98 0 0 1-4.24-1.42L16 38.34 13.66 36l1.5-1.5-1.5-1.5 1.98-1.98 1.5 1.5 1.42-1.42L18 30.66l1.42-1.42A7 7 0 0 1 22 24z" fill="#fff" opacity=".9"/>
+        <circle cx="29" cy="24" r="2.5" fill="#6c63ff"/>
+        <defs>
+          <linearGradient id="grad" x1="0" y1="0" x2="52" y2="52" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#6c63ff"/>
+            <stop offset="1" stop-color="#4ecdc4"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <h1>Sistema de Cupos</h1>
+      <p>Ingrese sus credenciales para continuar</p>
+    </div>
+
+    <div class="field">
+      <label for="usuario">Usuario</label>
+      <div class="select-wrap">
+        <select id="usuario">
+          <option value="">— Seleccione su nombre —</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="codigo">Código de acceso</label>
+      <input type="password" id="codigo" placeholder="••••••" autocomplete="current-password" />
+    </div>
+
+    <button class="btn-login" id="btnLogin" onclick="intentarLogin()">
+      <span id="btnText">Ingresar</span>
+      <div class="spinner" id="spinner"></div>
+    </button>
+
+    <div class="error-msg" id="errorMsg">Usuario o código incorrecto. Intente de nuevo.</div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    let usuarios = [];
+
+    // Cargar usuarios desde Google Sheets (con fallback a usuarios.json)
+    SheetsAPI.obtenerUsuarios()
+      .then(data => {
+        usuarios = data;
+        const sel = document.getElementById('usuario');
+        data.forEach(u => {
+          const op = document.createElement('option');
+          op.value = u.CODIGO;
+          op.textContent = u.NOMBRE;
+          sel.appendChild(op);
+        });
+      })
+      .catch(err => {
+        console.error('Error cargando usuarios:', err);
+        document.getElementById('errorMsg').textContent = 'No se pudo cargar la lista de usuarios.';
+        document.getElementById('errorMsg').style.display = 'block';
+      });
+
+    // Enter en el campo de código también dispara el login
+    document.getElementById('codigo').addEventListener('keydown', e => {
+      if (e.key === 'Enter') intentarLogin();
+    });
+
+    function intentarLogin() {
+      const selVal  = document.getElementById('usuario').value;
+      const codigo  = document.getElementById('codigo').value.trim();
+      const errDiv  = document.getElementById('errorMsg');
+      const btn     = document.getElementById('btnLogin');
+      const spinner = document.getElementById('spinner');
+      const btnText = document.getElementById('btnText');
+
+      errDiv.style.display = 'none';
+
+      if (!selVal || !codigo) {
+        errDiv.textContent = 'Debe seleccionar un usuario e ingresar el código.';
+        errDiv.style.display = 'block';
+        return;
+      }
+
+      // Simular pequeña demora visual
+      btn.disabled = true;
+      btnText.style.display = 'none';
+      spinner.style.display = 'block';
+
+      setTimeout(() => {
+        const match = usuarios.find(u => String(u.CODIGO) === selVal && String(u.CODIGO) === codigo);
+
+        btn.disabled = false;
+        btnText.style.display = 'block';
+        spinner.style.display = 'none';
+
+        if (match) {
+          // Guardar sesión en sessionStorage
+          sessionStorage.setItem('cupos_session', JSON.stringify({
+            nombre: match.NOMBRE,
+            codigo: match.CODIGO,
+            ts: Date.now()
+          }));
+          window.location.href = 'panel.html';
+        } else {
+          errDiv.textContent = 'Usuario o código incorrecto. Intente de nuevo.';
+          errDiv.style.display = 'block';
+          document.getElementById('codigo').value = '';
+          document.getElementById('codigo').focus();
+        }
+      }, 600);
+    }
+  </script>
+</body>
+</html>
