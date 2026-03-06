@@ -554,6 +554,7 @@
         var msg = await SheetsAPI.agregarCupoAEstudiante(hoja, materia, persona);
         notificarExito(msg);
         await actualizarStats();
+        renderTabla(); // refrescar tabla (no awaited para no bloquear UX)
       } catch(e) {
         notificarError(e.message);
       } finally {
