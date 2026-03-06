@@ -408,14 +408,53 @@ async function obtenerCuposMateria(nombreHoja, nombreMateria) {
 
 // ─── EXPORTAR PARA USO GLOBAL ─────────────────────────────────────────────────
 
+/**
+ * Lee la hoja completa para mostrar la tabla de visualización.
+ * @param {string} nombreHoja
+ * @returns {Promise<{headers: string[], filas: Array<{materia, cupos, conteo, personas: Object}>}>}
+ */
+async function obtenerTablaCompleta(nombreHoja) {
+  // Leer headers fila 1
+  const headers  = await _obtenerHeaders(nombreHoja);
+
+  // Índices clave (0-based para el array de valores)
+  const iCupos   = headers['CUPOS']          ? headers['CUPOS'] - 1          : null;
+  const iConteo  = headers['CONTEO DE CUPOS'] ? headers['CONTEO DE CUPOS'] - 1 : null;
+
+  // Leer nombres de personas D1:AW1
+  const nombresRow = await readRange(`'${nombreHoja}'!D1:AW1`);
+  const personas   = (nombresRow[0] || []).filter(n => n && String(n).trim() !== '');
+
+  // Leer todas las filas de datos A2:AZ
+  const rows = await readRange(`'${nombreHoja}'!A2:AZ`);
+
+  const filas = rows
+    .filter(r => r[0] && String(r[0]).trim() !== '')
+    .map(r => {
+      const materia = String(r[0]).trim();
+      const cupos   = iCupos  !== null ? (Number(r[iCupos])  || 0) : null;
+      const conteo  = iConteo !== null ? (Number(r[iConteo]) || 0) : null;
+      const porPersona = {};
+      personas.forEach((nombre, j) => {
+        porPersona[nombre] = Number(r[j + 3]) || 0; // col D = índice 3
+      });
+      return { materia, cupos, conteo, personas: porPersona };
+    });
+
+  return { personas, filas };
+}
+
+// ─── EXPORTAR PARA USO GLOBAL ─────────────────────────────────────────────────
+
 window.SheetsAPI = {
   obtenerHojas,
   obtenerNombres,
   obtenerMaterias,
   obtenerCuposMateria,
+  obtenerTablaCompleta,
   agregarCupoAEstudiante,
   obtenerUsuarios,
-  getAccessToken   // expuesto para debug/test
+  getAccessToken
 };
 
 console.log('[app.js] SheetsAPI cargado. Spreadsheet:', SPREADSHEET_ID);
